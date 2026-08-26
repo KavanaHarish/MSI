@@ -13,6 +13,12 @@ function buildLogEntries(history) {
         text: `${h.mutations} mutation${h.mutations > 1 ? "s" : ""} occurred`,
       });
     }
+    if (h.hgt_events > 0 && entries.length < 40) {
+      entries.push({
+        gen: h.generation,
+        text: `${h.hgt_events} plasmid transfer${h.hgt_events > 1 ? "s" : ""} spread resistance via HGT`,
+      });
+    }
     if (h.dominant_colony > lastDominant) {
       entries.push({
         gen: h.generation,

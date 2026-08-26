@@ -7,6 +7,7 @@ const SLIDERS = [
   { key: "initial_population", label: "Initial Population", min: 20, max: 400, step: 10 },
   { key: "mutation_rate", label: "Mutation Rate", min: 0, max: 0.3, step: 0.01 },
   { key: "mutation_strength", label: "Mutation Strength", min: 0, max: 0.5, step: 0.01 },
+  { key: "hgt_rate", label: "HGT Rate (Conjugation)", min: 0, max: 0.2, step: 0.01 },
   { key: "antibiotic_level", label: "Antibiotic Level", min: 0, max: 1, step: 0.05 },
   { key: "growth_rate", label: "Growth Rate", min: 0.05, max: 0.6, step: 0.01 },
   { key: "grid_size", label: "Grid Size", min: 20, max: 60, step: 5 },
@@ -15,27 +16,112 @@ const SLIDERS = [
 
 const SPECIES = [
   { value: "ecoli", label: "Escherichia coli (E. coli)" },
+  { value: "klebsiella", label: "Klebsiella pneumoniae" },
   { value: "pseudomonas", label: "Pseudomonas aeruginosa" },
+  { value: "acinetobacter", label: "Acinetobacter baumannii" },
+  { value: "enterococcus", label: "Enterococcus faecium" },
+  { value: "streptococcus", label: "Streptococcus pneumoniae" },
   { value: "mrsa", label: "MRSA (Methicillin-resistant Staphylococcus aureus)" },
+  { value: "salmonella", label: "Salmonella enterica" },
+  { value: "gonorrhoeae", label: "Neisseria gonorrhoeae" },
+  { value: "enterobacter", label: "Enterobacter cloacae" },
+  { value: "haemophilus", label: "Haemophilus influenzae" },
 ];
 
 const ANTIBIOTICS_BY_SPECIES = {
   ecoli: [
     { value: "nitrofurantoin", label: "Nitrofurantoin" },
     { value: "amoxicillin", label: "Amoxicillin" },
+    { value: "ampicillin", label: "Ampicillin" },
+    { value: "ceftriaxone", label: "Ceftriaxone" },
     { value: "ciprofloxacin", label: "Ciprofloxacin" },
+    { value: "gentamicin", label: "Gentamicin" },
+    { value: "co-trimoxazole", label: "Co-trimoxazole" },
     { value: "piperacillin-tazobactam", label: "Piperacillin–Tazobactam" },
     { value: "meropenem", label: "Meropenem" },
+    { value: "colistin", label: "Colistin" },
+  ],
+  klebsiella: [
+    { value: "ceftriaxone", label: "Ceftriaxone" },
+    { value: "meropenem", label: "Meropenem" },
+    { value: "ciprofloxacin", label: "Ciprofloxacin" },
+    { value: "amikacin", label: "Amikacin" },
+    { value: "gentamicin", label: "Gentamicin" },
+    { value: "colistin", label: "Colistin" },
   ],
   pseudomonas: [
     { value: "piperacillin-tazobactam", label: "Piperacillin–Tazobactam" },
     { value: "meropenem", label: "Meropenem" },
     { value: "ciprofloxacin", label: "Ciprofloxacin" },
+    { value: "ceftazidime", label: "Ceftazidime" },
+    { value: "cefepime", label: "Cefepime" },
+    { value: "amikacin", label: "Amikacin" },
+    { value: "gentamicin", label: "Gentamicin" },
+    { value: "colistin", label: "Colistin" },
+  ],
+  acinetobacter: [
+    { value: "meropenem", label: "Meropenem" },
+    { value: "ciprofloxacin", label: "Ciprofloxacin" },
+    { value: "amikacin", label: "Amikacin" },
+    { value: "ampicillin-sulbactam", label: "Ampicillin–Sulbactam" },
+    { value: "colistin", label: "Colistin" },
+  ],
+  enterococcus: [
+    { value: "vancomycin", label: "Vancomycin" },
+    { value: "ampicillin", label: "Ampicillin" },
+    { value: "teicoplanin", label: "Teicoplanin" },
+    { value: "linezolid", label: "Linezolid" },
+    { value: "daptomycin", label: "Daptomycin" },
+  ],
+  streptococcus: [
+    { value: "penicillin", label: "Penicillin" },
+    { value: "cefotaxime", label: "Cefotaxime" },
+    { value: "erythromycin", label: "Erythromycin" },
+    { value: "levofloxacin", label: "Levofloxacin" },
+    { value: "vancomycin", label: "Vancomycin" },
   ],
   mrsa: [
+    { value: "methicillin", label: "Methicillin" },
     { value: "vancomycin", label: "Vancomycin" },
     { value: "linezolid", label: "Linezolid" },
     { value: "daptomycin", label: "Daptomycin" },
+    { value: "clindamycin", label: "Clindamycin" },
+    { value: "erythromycin", label: "Erythromycin" },
+    { value: "co-trimoxazole", label: "Co-trimoxazole" },
+    { value: "gentamicin", label: "Gentamicin" },
+  ],
+  salmonella: [
+    { value: "ciprofloxacin", label: "Ciprofloxacin" },
+    { value: "ceftriaxone", label: "Ceftriaxone" },
+    { value: "ampicillin", label: "Ampicillin" },
+    { value: "co-trimoxazole", label: "Co-trimoxazole" },
+    { value: "azithromycin", label: "Azithromycin" },
+    { value: "meropenem", label: "Meropenem" },
+  ],
+  gonorrhoeae: [
+    { value: "ceftriaxone", label: "Ceftriaxone" },
+    { value: "cefixime", label: "Cefixime" },
+    { value: "ciprofloxacin", label: "Ciprofloxacin" },
+    { value: "azithromycin", label: "Azithromycin" },
+    { value: "doxycycline", label: "Doxycycline" },
+    { value: "spectinomycin", label: "Spectinomycin" },
+  ],
+  enterobacter: [
+    { value: "meropenem", label: "Meropenem" },
+    { value: "cefepime", label: "Cefepime" },
+    { value: "piperacillin-tazobactam", label: "Piperacillin–Tazobactam" },
+    { value: "ciprofloxacin", label: "Ciprofloxacin" },
+    { value: "amikacin", label: "Amikacin" },
+    { value: "colistin", label: "Colistin" },
+  ],
+  haemophilus: [
+    { value: "ampicillin", label: "Ampicillin" },
+    { value: "amoxicillin-clavulanate", label: "Amoxicillin–Clavulanate" },
+    { value: "cefotaxime", label: "Cefotaxime" },
+    { value: "ceftriaxone", label: "Ceftriaxone" },
+    { value: "azithromycin", label: "Azithromycin" },
+    { value: "levofloxacin", label: "Levofloxacin" },
+    { value: "co-trimoxazole", label: "Co-trimoxazole" },
   ],
 };
 
@@ -43,19 +129,10 @@ const ALL_ANTIBIOTICS = Array.from(
   new Map(Object.values(ANTIBIOTICS_BY_SPECIES).flat().map((item) => [item.value, item])).values()
 );
 
-const SELECT_CLASS =
-  "lab-select";
+const SELECT_CLASS = "lab-select";
 
 function getAntibioticOptions(species) {
   return ANTIBIOTICS_BY_SPECIES[species] || ALL_ANTIBIOTICS;
-}
-
-function isAllowedAntibiotic(species, antibiotic) {
-  return getAntibioticOptions(species).some((option) => option.value === antibiotic);
-}
-
-function getDefaultAntibiotic(species) {
-  return getAntibioticOptions(species)[0]?.value || "";
 }
 
 function isReadyForSimulation(config) {
@@ -73,9 +150,12 @@ export default function ControlPanel() {
     isRunning,
     experimentId,
     loading,
+    startError,
+    applyTreatment,
   } = useSimulation();
 
   const [showParameters, setShowParameters] = useState(false);
+  const [treatment, setTreatment] = useState({ concentration: 1.0, x: "", y: "" });
   const disabled = !!experimentId;
   const antibioticOptions = getAntibioticOptions(config.species);
   const readyForParameters = isReadyForSimulation(config);
@@ -143,6 +223,15 @@ export default function ControlPanel() {
           ))}
         </select>
 
+        {readyForParameters && (
+          <div className="mt-4 pt-4 border-t border-white/10">
+            <p className="text-xs font-data text-medical-white/45 leading-relaxed">
+              Configure the simulation parameters below, then start the
+              experiment.
+            </p>
+          </div>
+        )}
+
         {!readyForParameters && !experimentId && (
           <p className="mt-3 text-xs font-data text-medical-white/45 leading-relaxed">
             Please select both a microbial species and an antimicrobial agent to continue.
@@ -206,6 +295,11 @@ export default function ControlPanel() {
                 {loading ? "Initializing…" : "Start Simulation"}
               </button>
             </div>
+            {startError && (
+              <p className="text-xs font-data text-red-400 text-center bg-red-500/10 border border-red-500/30 rounded-md px-3 py-2">
+                {startError}
+              </p>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -225,6 +319,84 @@ export default function ControlPanel() {
           <button onClick={reset} className="btn-outline text-sm py-2.5 col-span-2">
             Reset
           </button>
+        </div>
+      )}
+
+      {experimentId && (
+        <div className="flex flex-col gap-2 pt-3 border-t border-white/10">
+          <p className="text-xs font-data text-cyan-soft/80 tracking-wide uppercase font-bold">
+            Lab Interventions
+          </p>
+          <div className="flex flex-col gap-2">
+            <div>
+              <div className="flex justify-between text-xs font-data text-medical-white/70 mb-1">
+                <span>Treatment Concentration</span>
+                <span className="text-gold-400">
+                  {treatment.concentration.toFixed(2)}× MIC
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={2}
+                step={0.05}
+                value={treatment.concentration}
+                onChange={(e) =>
+                  setTreatment((t) => ({
+                    ...t,
+                    concentration: parseFloat(e.target.value),
+                  }))
+                }
+                className="w-full accent-cyan-400"
+              />
+              <p className="mt-1 text-[10px] font-data text-medical-white/40 leading-relaxed">
+                1.0 = baseline MIC. Push above 1.0 (supra-MIC shock dose) to kill even
+                resistant cells — watch the population drop.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="number"
+                min={0}
+                placeholder="x (center)"
+                value={treatment.x}
+                onChange={(e) => setTreatment((t) => ({ ...t, x: e.target.value }))}
+                className="w-full rounded-lg border border-white/10 bg-charcoal/60 px-2.5 py-1.5 text-xs font-data text-medical-white outline-none focus:border-cyan-soft/60"
+              />
+              <input
+                type="number"
+                min={0}
+                placeholder="y (center)"
+                value={treatment.y}
+                onChange={(e) => setTreatment((t) => ({ ...t, y: e.target.value }))}
+                className="w-full rounded-lg border border-white/10 bg-charcoal/60 px-2.5 py-1.5 text-xs font-data text-medical-white outline-none focus:border-cyan-soft/60"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-2">
+              <button
+                onClick={() => {
+                  const grid = config.grid_size || 40;
+                  const parseCoord = (val) => {
+                    if (val === "") return null;
+                    const n = parseInt(val, 10);
+                    if (Number.isNaN(n)) return null;
+                    return Math.max(0, Math.min(grid - 1, n));
+                  };
+                  applyTreatment(
+                    treatment.concentration,
+                    parseCoord(treatment.x),
+                    parseCoord(treatment.y),
+                    config.antibiotic || "Custom Drug"
+                  );
+                }}
+                className="text-xs font-data py-2 rounded-lg border border-cyan-400/40 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 transition-colors"
+              >
+                💊 Apply Treatment
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

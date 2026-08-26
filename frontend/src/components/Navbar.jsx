@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 const NAV_LINKS = [
   { label: "Home", to: "/" },
   { label: "Explore", to: "/how-to-use" },
-  { label: "Laboratory", to: "/dashboard" },
+  {label: "Contact Us", to: "/aboutus" },
 ];
 
 export default function Navbar() {
@@ -54,7 +54,7 @@ export default function Navbar() {
                 /* Fully rounded inner pills */
                 className={`relative px-6 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
                   active 
-                    ? "text-emerald-100 bg-[#74421f'] border border[#FFAB0F] shadow-[0_0_15px_rgba(16,185,129,0.2)]" 
+                    ? "text-emerald-100 bg-[#74421f] border border-[#FFAB0F] shadow-[0_0_15px_rgba(16,185,129,0.2)]" 
                     : "text-stone-300 hover:text-white hover:bg-white/10 border border-transparent"
                 }`}
               >
@@ -74,7 +74,7 @@ export default function Navbar() {
                 : "border-emerald-700/50 text-white font-semibold hover:border-emerald-400 hover:text-[#e0be7e] hover:bg-emerald-500/10 hover:shadow-[0_0_15px_rgba(16,185,129,0.2)]"
             }`}
           >
-            About Us
+            ABOUT
           </Link>
         </div>
       </nav>

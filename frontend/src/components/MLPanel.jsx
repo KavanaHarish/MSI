@@ -10,7 +10,7 @@ export default function MLPanel() {
       <div className="flex items-center gap-2 mb-4">
         <span className="w-2 h-2 rounded-full bg-emerald-accent animate-pulseGlow" />
         <h3 className="font-display text-gold-500 text-sm tracking-[0.2em]">
-          AI ANALYSIS & PREDICTION
+          ANALYSIS & PREDICTION
         </h3>
       </div>
 
@@ -39,7 +39,11 @@ export default function MLPanel() {
           />
           <Metric
             label="Risk Zone"
-            value={prediction.high_risk_zone ? "High" : "Low"}
+            value={
+              prediction.high_risk_zone
+                ? `High (${prediction.risk_score})`
+                : `Low (${prediction.risk_score})`
+            }
             accent={prediction.high_risk_zone ? "text-red-400" : "text-emerald-accent"}
           />
 
@@ -49,6 +53,11 @@ export default function MLPanel() {
             </p>
             <p className="text-sm font-body text-medical-white/80 leading-relaxed">
               {prediction.recommendation}
+            </p>
+            <p className="mt-2 text-[10px] font-data text-medical-white/40">
+              {prediction.model_used || "Random Forest"} · confidence from R² fit and
+              residual scatter · risk factors: hotspots, resistance slope, density,
+              mutation velocity, death rate
             </p>
           </div>
         </motion.div>

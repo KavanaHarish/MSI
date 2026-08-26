@@ -3,19 +3,48 @@ import jsPDF from "jspdf";
 
 const SPECIES_NAMES = {
   ecoli: "Escherichia coli (E. coli)",
+  klebsiella: "Klebsiella pneumoniae",
   pseudomonas: "Pseudomonas aeruginosa",
+  acinetobacter: "Acinetobacter baumannii",
+  enterococcus: "Enterococcus faecium",
+  streptococcus: "Streptococcus pneumoniae",
   mrsa: "MRSA (Methicillin-resistant S. aureus)",
+  salmonella: "Salmonella enterica",
+  gonorrhoeae: "Neisseria gonorrhoeae",
+  enterobacter: "Enterobacter cloacae",
+  haemophilus: "Haemophilus influenzae",
 };
 
 const ANTIBIOTIC_NAMES = {
   nitrofurantoin: "Nitrofurantoin",
   amoxicillin: "Amoxicillin",
+  ampicillin: "Ampicillin",
+  ceftriaxone: "Ceftriaxone",
   ciprofloxacin: "Ciprofloxacin",
+  gentamicin: "Gentamicin",
+  "co-trimoxazole": "Co-trimoxazole",
   "piperacillin-tazobactam": "Piperacillin–Tazobactam",
   meropenem: "Meropenem",
+  colistin: "Colistin",
+  amikacin: "Amikacin",
+  ceftazidime: "Ceftazidime",
+  cefepime: "Cefepime",
+  "ampicillin-sulbactam": "Ampicillin–Sulbactam",
   vancomycin: "Vancomycin",
+  teicoplanin: "Teicoplanin",
   linezolid: "Linezolid",
   daptomycin: "Daptomycin",
+  penicillin: "Penicillin",
+  cefotaxime: "Cefotaxime",
+  erythromycin: "Erythromycin",
+  levofloxacin: "Levofloxacin",
+  methicillin: "Methicillin",
+  clindamycin: "Clindamycin",
+  azithromycin: "Azithromycin",
+  doxycycline: "Doxycycline",
+  cefixime: "Cefixime",
+  spectinomycin: "Spectinomycin",
+  "amoxicillin-clavulanate": "Amoxicillin–Clavulanate",
 };
 
 function pad(value) {
@@ -582,13 +611,13 @@ export default async function generateLaboratoryReport({ config = {}, state = {}
       ${getPageFooterHTML(7)}
     </div>
 
-    <!-- PAGE 8: AI INTERPRETATION -->
+    <!-- PAGE 8:  INTERPRETATION -->
     <div class="pdf-page" style="width: 800px; height: 1130px; box-sizing: border-box; padding: 40px; display: flex; flex-direction: column; ${bgWatermarkStyle}">
       ${getPageHeaderHTML(8)}
 
       <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
         <span style="font-size: 20px;">🤖</span>
-        <h2 style="font-size: 20px; font-weight: 800; color: #ffffff; margin: 0;">PAGE 8 — AI INTERPRETATION & RECOMMENDATIONS</h2>
+        <h2 style="font-size: 20px; font-weight: 800; color: #ffffff; margin: 0;">PAGE 8 —  INTERPRETATION & RECOMMENDATIONS</h2>
       </div>
       <div style="height: 2px; width: 100%; background: linear-gradient(90deg, #38bdf8, #c084fc, transparent); margin-bottom: 20px;"></div>
 
@@ -619,9 +648,9 @@ export default async function generateLaboratoryReport({ config = {}, state = {}
         `).join("")}
       </div>
 
-      <!-- AI Recommendations Box -->
+      <!--  Recommendations Box -->
       <div style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(192, 132, 252, 0.35); border-radius: 18px; padding: 20px;">
-        <div style="font-size: 12px; font-weight: 800; color: #c084fc; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px;">💡 AI Diagnostic Recommendations</div>
+        <div style="font-size: 12px; font-weight: 800; color: #c084fc; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px;">💡Diagnostic Recommendations</div>
         <div style="font-size: 11px; color: #cbd5e1; line-height: 1.6;">
           ${
             avgResistance > 50

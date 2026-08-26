@@ -1,10 +1,12 @@
 import { createContext, useContext, useRef, useState, useCallback } from "react";
+
 import {
   startExperiment,
   stepExperiment,
   getPrediction,
   getHistory,
   resetExperiment,
+  treatExperiment,
 } from "../api/client.js";
 
 const SimulationContext = createContext(null);
@@ -19,6 +21,7 @@ const DEFAULT_CONFIG = {
   antibiotic_level: 0.5,
   growth_rate: 0.3,
   simulation_speed: 1.0,
+  hgt_rate: 0.02,
 };
 
 export function SimulationProvider({ children }) {
@@ -29,10 +32,12 @@ export function SimulationProvider({ children }) {
   const [prediction, setPrediction] = useState({ ready: false });
   const [isRunning, setIsRunning] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [startError, setStartError] = useState(null);
   const intervalRef = useRef(null);
 
   const updateConfig = useCallback((patch) => {
     setConfig((prev) => ({ ...prev, ...patch }));
+    setStartError(null);
   }, []);
 
   const tick = useCallback(async (id) => {
@@ -46,6 +51,7 @@ export function SimulationProvider({ children }) {
 
   const start = useCallback(async () => {
     setLoading(true);
+    setStartError(null);
     try {
       const s = await startExperiment(config);
       setExperimentId(s.id);
@@ -56,6 +62,9 @@ export function SimulationProvider({ children }) {
 
       const speedMs = Math.max(120, 700 / (config.simulation_speed || 1));
       intervalRef.current = setInterval(() => tick(s.id), speedMs);
+    } catch (err) {
+      const detail = err?.response?.data?.error || err?.message || "Unknown error";
+      setStartError(`Failed to start simulation. Is the backend running? (${detail})`);
     } finally {
       setLoading(false);
     }
@@ -90,21 +99,30 @@ export function SimulationProvider({ children }) {
     setHistory(h);
   }, [experimentId]);
 
+  const applyTreatment = useCallback(async (intensity = 0.8, x = null, y = null, drugName = "Secondary Antibiotic") => {
+  if (!experimentId) return;
+  const newState = await treatExperiment(experimentId, intensity, x, y, drugName);
+  setState(newState);
+}, [experimentId]);
+
+  
   const value = {
-    config,
-    updateConfig,
-    experimentId,
-    state,
-    history,
-    prediction,
-    isRunning,
-    loading,
-    start,
-    pause,
-    resume,
-    reset,
-    refreshHistory,
-  };
+  config,
+  updateConfig,
+  experimentId,
+  state,
+  history,
+  prediction,
+  isRunning,
+  loading,
+  startError,
+  start,
+  pause,
+  resume,
+  reset,
+  refreshHistory,
+  applyTreatment,
+};
 
   return (
     <SimulationContext.Provider value={value}>{children}</SimulationContext.Provider>

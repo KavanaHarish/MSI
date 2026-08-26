@@ -55,12 +55,14 @@ class MongoStore:
             self._memory["experiments"][experiment_id] = metadata
 
     def save_snapshot(self, experiment_id, snapshot):
-        snapshot["experiment_id"] = experiment_id
-        snapshot["timestamp"] = datetime.datetime.utcnow()
+        # Copy so the storage metadata never mutates the engine's own history.
+        doc = dict(snapshot)
+        doc["experiment_id"] = experiment_id
+        doc["timestamp"] = datetime.datetime.utcnow()
         if self.connected:
-            self.db.snapshots.insert_one(snapshot)
+            self.db.snapshots.insert_one(doc)
         else:
-            self._memory["snapshots"].setdefault(experiment_id, []).append(snapshot)
+            self._memory["snapshots"].setdefault(experiment_id, []).append(doc)
 
     def save_report(self, experiment_id, report):
         report["experiment_id"] = experiment_id

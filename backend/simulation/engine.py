@@ -1,5 +1,5 @@
 """
-Microbial Evolution Simulation Engine.
+Microbial Evolution Simulation Engine - Interactive Virtual Lab Edition.
 """
 import uuid
 import random
@@ -9,10 +9,23 @@ SPECIES_PROFILES = {
     "ecoli": {"label": "E. coli", "base_growth": 0.32, "base_mutation": 0.01},
     "mrsa": {"label": "MRSA", "base_growth": 0.22, "base_mutation": 0.02},
     "pseudomonas": {"label": "Pseudomonas", "base_growth": 0.27, "base_mutation": 0.015},
+    "klebsiella": {"label": "K. pneumoniae", "base_growth": 0.3, "base_mutation": 0.018},
+    "acinetobacter": {"label": "Acinetobacter", "base_growth": 0.24, "base_mutation": 0.03},
+    "enterococcus": {"label": "E. faecium", "base_growth": 0.26, "base_mutation": 0.012},
+    "streptococcus": {"label": "S. pneumoniae", "base_growth": 0.28, "base_mutation": 0.008},
+    "salmonella": {"label": "S. enterica", "base_growth": 0.25, "base_mutation": 0.014},
+    "gonorrhoeae": {"label": "N. gonorrhoeae", "base_growth": 0.24, "base_mutation": 0.02},
+    "enterobacter": {"label": "E. cloacae", "base_growth": 0.29, "base_mutation": 0.02},
+    "haemophilus": {"label": "H. influenzae", "base_growth": 0.26, "base_mutation": 0.01},
 }
 
-# Adjusted thresholds for a highly visual, 4-stage color progression
 SUSCEPTIBLE, INTERMEDIATE, RESISTANT, HIGHLY_RESISTANT = 0, 1, 2, 3
+
+# Horizontal gene transfer (conjugation) parameters:
+# a cell must be at least this resistant to act as a plasmid donor, and the
+# recipient's resistance moves this fraction of the way toward the donor.
+HGT_MIN_RESISTANCE = 0.5
+HGT_TRANSFER_FRACTION = 0.5
 
 
 def classify(resistance):
@@ -33,7 +46,7 @@ class Cell:
         self.y = y
         self.resistance = resistance
         self.alive = True
-        self.mutations = mutations  # Now properly tracks genomic changes
+        self.mutations = mutations
 
 
 class SimulationEngine:
@@ -47,6 +60,7 @@ class SimulationEngine:
         antibiotic_level=0.5,
         growth_rate=0.3,
         simulation_speed=1.0,
+        hgt_rate=0.02,
     ):
         self.id = str(uuid.uuid4())
         self.species = species if species in SPECIES_PROFILES else "ecoli"
@@ -54,33 +68,44 @@ class SimulationEngine:
 
         self.grid_size = int(grid_size)
         self.mutation_rate = float(mutation_rate)
-        
-        # DEMO BOOST: Artificially accelerate strength so evolution is visible quickly
         self.mutation_strength = float(mutation_strength) * 4.0 
         
         self.antibiotic_level = float(antibiotic_level)
         self.growth_rate = float(growth_rate) if growth_rate else profile["base_growth"]
         self.simulation_speed = float(simulation_speed)
+        self.hgt_rate = float(hgt_rate)
 
         self.generation = 0
         self.mutation_count = 0
         self.death_count = 0
+        self.hgt_count = 0
         self.history = []
+        self.interventions_log = [] # Tracks manual lab actions
 
         self.antibiotic_field = self._init_antibiotic_field()
         self.cells = []
         self.max_population = max(int(initial_population) * 12, 800)
         
-        # Enforce 1 cell = 1 grid space on initialization
         occupied = set()
         while len(self.cells) < int(initial_population) and len(occupied) < self.grid_size**2:
             x = random.randint(0, self.grid_size - 1)
             y = random.randint(0, self.grid_size - 1)
             if (x, y) not in occupied:
                 occupied.add((x, y))
-                self.cells.append(Cell(x, y, random.uniform(0.0, 0.10)))
+                self.cells.append(
+                    Cell(x, y, self._seed_resistance())
+                )
 
         self.running = False
+
+    def _seed_resistance(self):
+        """Sample an initial resistance value for a freshly seeded cell.
+
+        Every cell starts in the low susceptible range so any resistance that
+        appears later is the result of mutation and selection pressure, not an
+        initial condition.
+        """
+        return random.uniform(0.0, 0.10)
 
     def _init_antibiotic_field(self):
         size = self.grid_size
@@ -90,6 +115,39 @@ class SimulationEngine:
         field = self.antibiotic_level * np.clip(1.0 - dist * 0.6, 0.1, 1.0)
         return field
 
+    def apply_treatment(self, intensity, center_x=None, center_y=None, drug_name="Custom Treatment"):
+        """
+        LAB FEATURE: Allows the user to drop a targeted antibiotic disk 
+        or change drug concentration anywhere on the grid mid-simulation.
+        """
+        intensity = float(intensity)
+        size = self.grid_size
+        
+        if center_x is None or center_y is None:
+            cx, cy = size / 2, size / 2
+        else:
+            cx, cy = float(center_x), float(center_y)
+
+        yy, xx = np.mgrid[0:size, 0:size]
+        dist = np.sqrt((xx - cx) ** 2 + (yy - cy) ** 2) / (size / 2)
+        
+        # Create a localized diffusion gradient ring (Kirby-Bauer simulation).
+        # Concentration can exceed 1.0 to simulate a high-dose shock dose —
+        # cells with resistance below the local concentration will die.
+        new_pocket = intensity * np.clip(1.0 - dist * 0.8, 0.0, 1.0)
+        
+        # Blend with current antibiotic field (allow supra-MIC dosing, cap at 2.0)
+        self.antibiotic_field = np.clip(self.antibiotic_field + new_pocket, 0.0, 2.0)
+        
+        self.interventions_log.append({
+            "generation": self.generation,
+            "action": "apply_treatment",
+            "drug": drug_name,
+            "intensity": intensity,
+            "coordinates": (cx, cy)
+        })
+        return self.get_state()
+
     def _diffuse_antibiotic(self):
         kernel_sum = (
             np.roll(self.antibiotic_field, 1, axis=0)
@@ -98,10 +156,55 @@ class SimulationEngine:
             + np.roll(self.antibiotic_field, -1, axis=1)
         )
         self.antibiotic_field = 0.5 * self.antibiotic_field + 0.125 * kernel_sum
-        
-        # DEMO BOOST: Do not let the antibiotic decay to zero. 
-        # A lethal baseline forces the susceptible cells to die, making room for red superbugs.
-        self.antibiotic_field = np.clip(self.antibiotic_field, 0.45, 1.0)
+        # Allow natural decay if unforced, keeping baseline flexible for lab resets
+        self.antibiotic_field = np.clip(self.antibiotic_field, 0.1, 2.0)
+
+    def _horizontal_gene_transfer(self, cells):
+        """LAB FEATURE: conjugation.
+
+        A resistant cell shares resistance genes (plasmids) with an adjacent
+        cell, pulling the recipient's resistance partway toward its own. This
+        spreads resistance laterally between neighbours — independent of the
+        vertical parent→child inheritance handled in step() — which produces
+        the explosive, non-linear resistance sweeps seen in real microbiology.
+
+        Donor resistances are snapshotted before the pass so a cell that
+        receives a plasmid this generation cannot donate again in the same
+        generation (no unbounded one-pass cascade).
+        """
+        if self.hgt_rate <= 0 or len(cells) < 2:
+            return 0
+
+        occupied = {(c.x, c.y): c for c in cells}
+        donor_resistance = {id(c): c.resistance for c in cells}
+        transfers = 0
+        grid = self.grid_size
+
+        for donor in cells:
+            base = donor_resistance.get(id(donor), donor.resistance)
+            if base < HGT_MIN_RESISTANCE:
+                continue
+            if random.random() > self.hgt_rate:
+                continue
+
+            candidates = [
+                (donor.x + dx, donor.y + dy)
+                for dx in (-1, 0, 1)
+                for dy in (-1, 0, 1)
+                if not (dx == 0 and dy == 0)
+            ]
+            random.shuffle(candidates)
+
+            for nx, ny in candidates:
+                if 0 <= nx < grid and 0 <= ny < grid:
+                    receiver = occupied.get((nx, ny))
+                    if receiver is not None and receiver.resistance < base:
+                        gain = (base - receiver.resistance) * HGT_TRANSFER_FRACTION
+                        receiver.resistance = float(np.clip(receiver.resistance + gain, 0.0, 1.0))
+                        transfers += 1
+                        break
+
+        return transfers
 
     def step(self):
         self.generation += 1
@@ -117,8 +220,7 @@ class SimulationEngine:
                 continue
 
             local_ab = float(self.antibiotic_field[cell.y, cell.x])
-            # Higher pressure = lower survival chance for green/yellow cells
-            survival_chance = 1.0 - max(0.0, local_ab - cell.resistance)
+            survival_chance = 1.0 - max(0.0, local_ab - cell.resistance) #selection
 
             if random.random() > survival_chance:
                 cell.alive = False
@@ -132,7 +234,6 @@ class SimulationEngine:
                 deaths_this_gen += 1
 
         new_cells = []
-        
         for cell in survivors:
             new_cells.append(cell)
             
@@ -150,8 +251,7 @@ class SimulationEngine:
                             child_resistance = cell.resistance
                             child_mutations = cell.mutations
                             
-                            # DEMO BOOST: 3x more likely to mutate, and strictly positive resistance gain
-                            if random.random() < (self.mutation_rate * 3.0):
+                            if random.random() < (self.mutation_rate * 3.0): #mutation 
                                 delta = random.uniform(0.1, 0.8) * self.mutation_strength
                                 child_resistance = float(np.clip(cell.resistance + delta, 0, 1))
                                 child_mutations += 1
@@ -162,14 +262,17 @@ class SimulationEngine:
                             break
 
         self.cells = new_cells
+
+        hgt_events_this_gen = self._horizontal_gene_transfer(self.cells)
+        self.hgt_count += hgt_events_this_gen
         self.death_count += deaths_this_gen
         self.mutation_count += mutations_this_gen
 
-        snapshot = self._build_snapshot(deaths_this_gen, mutations_this_gen)
+        snapshot = self._build_snapshot(deaths_this_gen, mutations_this_gen, hgt_events_this_gen)
         self.history.append(snapshot)
         return snapshot
 
-    def _build_snapshot(self, deaths_this_gen, mutations_this_gen):
+    def _build_snapshot(self, deaths_this_gen, mutations_this_gen, hgt_events_this_gen=0):
         population = len(self.cells)
         if population > 0:
             resistances = np.array([c.resistance for c in self.cells])
@@ -192,8 +295,10 @@ class SimulationEngine:
             "resistant_fraction": round(resistant_frac, 4),
             "deaths": deaths_this_gen,
             "mutations": mutations_this_gen,
+            "hgt_events": hgt_events_this_gen,
             "cumulative_deaths": self.death_count,
             "cumulative_mutations": self.mutation_count,
+            "cumulative_hgt_events": self.hgt_count,
             "survival_rate": round(survival_rate, 4),
             "hotspot_count": hotspot_count,
             "dominant_colony": classify(avg_resistance),
@@ -218,7 +323,7 @@ class SimulationEngine:
                 "cls": classify(c.resistance),
                 "alive": True,
                 "generation_born": self.generation,
-                "mutation_count": c.mutations, # Now dynamically passed to frontend
+                "mutation_count": c.mutations,
                 "growth_rate": round(self.growth_rate, 3),
                 "parent_id": None,
             }
@@ -232,7 +337,7 @@ class SimulationEngine:
         return np.round(field, 3).tolist()
 
     def get_state(self):
-        latest = self.history[-1] if self.history else self._build_snapshot(0, 0)
+        latest = self.history[-1] if self.history else self._build_snapshot(0, 0, 0)
         return {
             "id": self.id,
             "species": self.species,
@@ -241,6 +346,7 @@ class SimulationEngine:
             "cells": self.get_cells_payload(),
             "antibiotic_field": self.get_antibiotic_field_payload(downsample=2),
             "stats": latest,
+            "interventions_log": self.interventions_log,
         }
 
     def config_metadata(self):
@@ -252,4 +358,5 @@ class SimulationEngine:
             "antibiotic_level": self.antibiotic_level,
             "growth_rate": self.growth_rate,
             "simulation_speed": self.simulation_speed,
+            "hgt_rate": self.hgt_rate,
         }

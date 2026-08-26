@@ -36,8 +36,10 @@ def health():
 def start_experiment():
     payload = request.get_json(force=True) or {}
 
+    species = payload.get("species", "ecoli")
+
     engine = SimulationEngine(
-        species=payload.get("species", "ecoli"),
+        species=species,
         grid_size=payload.get("grid_size", 40),
         initial_population=payload.get("initial_population", 120),
         mutation_rate=payload.get("mutation_rate", 0.05),
@@ -45,6 +47,7 @@ def start_experiment():
         antibiotic_level=payload.get("antibiotic_level", 0.5),
         growth_rate=payload.get("growth_rate", 0.3),
         simulation_speed=payload.get("simulation_speed", 1.0),
+        hgt_rate=payload.get("hgt_rate", 0.02),
     )
     engine.running = True
     ACTIVE_SIMULATIONS[engine.id] = engine
@@ -114,6 +117,24 @@ def reset_experiment():
     if experiment_id in ACTIVE_SIMULATIONS:
         del ACTIVE_SIMULATIONS[experiment_id]
     return jsonify({"status": "reset"})
+
+
+@app.route('/api/treat', methods=['POST'])
+def apply_treatment():
+    data = request.get_json(force=True) or {}
+    experiment_id = data.get("experiment_id")
+    
+    engine = _get_engine_or_404(experiment_id)
+    if engine is None:
+        return jsonify({"error": "experiment not found"}), 404
+        
+    intensity = data.get('intensity', 0.8)
+    x = data.get('x', None)
+    y = data.get('y', None)
+    drug = data.get('drug_name', 'Secondary Antibiotic')
+    
+    state = engine.apply_treatment(intensity, x, y, drug)
+    return jsonify(state)
 
 
 @app.route("/api/report", methods=["GET"])

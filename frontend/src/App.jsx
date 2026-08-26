@@ -4,7 +4,9 @@ import Navbar from "./components/Navbar.jsx";
 import Footer from "./components/Footer.jsx";
 import Landing from "./pages/Landing.jsx";
 import HowToUse from "./pages/HowToUse.jsx";
+import About from "./pages/About.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
+import AboutUs from './pages/Aboutus'
 
 export default function App() {
   const location = useLocation();
@@ -18,7 +20,9 @@ export default function App() {
           <Routes location={location} key={location.pathname}>
             <Route path="/" element={<Landing />} />
             <Route path="/how-to-use" element={<HowToUse />} />
+            <Route path="/about" element={<About />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/aboutus" element={<AboutUs />} />
           </Routes>
         </AnimatePresence>
       </main>

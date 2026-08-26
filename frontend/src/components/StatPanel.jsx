@@ -1,6 +1,6 @@
 import { useSimulation } from "../context/SimulationContext.jsx";
 
-const CLASS_LABEL = { 0: "Susceptible", 1: "Intermediate", 2: "Resistant" };
+const CLASS_LABEL = { 0: "Susceptible", 1: "Intermediate", 2: "Resistant", 3: "Highly Resistant" };
 
 function StatRow({ label, value, accent = "text-medical-white" }) {
   return (
@@ -41,6 +41,11 @@ export default function StatPanel() {
         label="Mutation Count"
         value={stats.cumulative_mutations}
         accent="text-cyan-soft"
+      />
+      <StatRow
+        label="HGT Transfers"
+        value={stats.cumulative_hgt_events ?? 0}
+        accent="text-purple-300"
       />
       <StatRow label="Death Rate" value={stats.deaths} />
       <StatRow
