@@ -1,11 +1,16 @@
-import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import GlassCard from "../components/GlassCard.jsx";
 
 const CONTROLS = [
   {
     name: "Species & Antibiotic",
-    desc: "Pick one of eleven clinically relevant bacteria (E. coli, K. pneumoniae, P. aeruginosa, A. baumannii, E. faecium, S. pneumoniae, MRSA, S. enterica, N. gonorrhoeae, E. cloacae, H. influenzae) and a matching antimicrobial agent.",
+    desc: (
+      <>
+        Pick one of eleven clinically relevant bacteria (<span className="italic">E. coli, K. pneumoniae, P. aeruginosa, A. baumannii, E. faecium, S. pneumoniae, MRSA, S. enterica, N. gonorrhoeae, E. cloacae, H. influenzae</span>) and a matching antimicrobial agent.
+      </>
+    ),
   },
   {
     name: "Treatment Concentration",
@@ -25,7 +30,7 @@ const CONTROLS = [
   },
   {
     name: "HGT Rate (Conjugation)",
-    desc: "The probability per generation that a resistant cell shares resistance genes (plasmids) with an adjacent neighbor. Horizontal transfer bypasses reproduction entirely — even a few resistant donors can pull whole colonies up to high resistance within a handful of generations.",
+    desc: "The probability per generation that a resistant cell shares resistance genes (plasmids) with an adjacent neighbor. Horizontal transfer bypasses reproduction entirely.",
   },
   {
     name: "Antibiotic Level",
@@ -45,13 +50,31 @@ const CONTROLS = [
   },
 ];
 
-const GRID_LEGEND = [
-  { label: "Susceptible (viable)", color: "#34D399" },
-  { label: "Intermediate resistance", color: "#FFD54A" },
-  { label: "Resistant variant", color: "#FF8C32" },
-  { label: "Highly resistant (superbug)", color: "#FF3B3B" },
-  { label: "Dead (lysis)", color: "#334155" },
-  { label: "Antibiotic concentration heatmap", color: "linear-gradient(135deg, #32E6FF, #7B2CFF)" },
+const EVOLUTION_STATES = [
+  {
+    color: "#34D399", // Emerald Green
+    title: "Susceptible (Viable)",
+    desc: "The bacterium is alive and healthy, but highly vulnerable to the antibiotic gradient. With low resistance, it relies entirely on the cell wall for survival.",
+    glow: "rgba(52, 211, 153, 0.4)",
+  },
+  {
+    color: "#FFD54A", // Yellow
+    title: "Intermediate Resistance",
+    desc: "Mutations have begun altering the cell's genetic makeup. It can now survive low-to-moderate doses of antibiotics, allowing it to outcompete susceptible strains.",
+    glow: "rgba(255, 213, 74, 0.4)",
+  },
+  {
+    color: "#FF8C32", // Orange
+    title: "Resistant Variant",
+    desc: "Significant structural changes (like efflux pumps) have formed. It survives normal antibiotic doses easily and is reproducing rapidly across the grid.",
+    glow: "rgba(255, 140, 50, 0.4)",
+  },
+  {
+    color: "#FF3B3B", // Red
+    title: "Highly Resistant (Superbug)",
+    desc: "Complete immunity to the current treatment concentration. This superbug colony will dominate the petri dish unless supra-MIC interventions are applied.",
+    glow: "rgba(255, 59, 59, 0.4)",
+  },
 ];
 
 const OUTPUTS = [
@@ -113,11 +136,6 @@ const MODEL_RULES = [
   },
 ];
 
-const LAB_CONTROLS = [
-  { name: "Pause / Resume / Reset", desc: "Freeze the run at the current generation, continue it, or wipe the dish and return to the configuration screen." },
-  { name: "Apply Treatment", desc: "Drop a targeted antibiotic dose anywhere on the grid with a chosen concentration (0–2× MIC) and optional x/y coordinates for the center of the zone." },
-];
-
 const ML_METRICS = [
   { name: "Estimated Dominant Generation", desc: "The generation where a random-forest forecast projects average resistance crossing the 0.7 dominance threshold." },
   { name: "Antibiotic Effectiveness", desc: "A 0–100 score that falls as resistance accelerates, signalling the current dose is losing efficacy." },
@@ -128,10 +146,20 @@ const ML_METRICS = [
 const EXPORT_OPTIONS = [
   { name: "JSON", desc: "The complete experiment history and metadata as machine-readable JSON." },
   { name: "CSV", desc: "A flat per-generation table (population, resistance, deaths, mutations, survival, hotspots) for spreadsheets." },
-  { name: "PDF Report", desc: "An 8-page laboratory report: cover, configuration, live metrics, charts, colony snapshot, biological analysis, observations, and  interpretation." },
+  { name: "PDF Report", desc: "An 8-page laboratory report: cover, configuration, live metrics, charts, colony snapshot, biological analysis, observations, and interpretation." },
 ];
 
 export default function HowToUse() {
+  const [evoIndex, setEvoIndex] = useState(0);
+
+  // Automatically cycle through the evolution states every 4 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setEvoIndex((prev) => (prev + 1) % EVOLUTION_STATES.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -152,54 +180,24 @@ export default function HowToUse() {
       </section>
 
       {/* Section 1: control specifications */}
-      <section className="max-w-6xl mx-auto px-6 py-16 grid grid-cols-1 lg:grid-cols-2 gap-14 items-start">
-        <GlassCard hover={false} className="!p-4">
-          <div className="rounded-xl overflow-hidden bg-navy-deep/90 p-5 border border-cyan-400/20 shadow-xl space-y-4">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <span className="text-xs font-data text-cyan-soft uppercase tracking-wider">🔬 Experiment Config</span>
-              <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/30">Ready</span>
-            </div>
-            <div className="space-y-3 font-data text-xs">
-              <div>
-                <label className="text-medical-white/60 block mb-1">Target Organism</label>
-                <div className="bg-charcoal p-2 rounded border border-white/10 text-gold-400">Escherichia coli (E. coli)</div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-medical-white/60 block mb-1">Mutation Rate</label>
-                  <div className="bg-charcoal p-2 rounded border border-white/10 text-cyan-soft">5.0%</div>
-                </div>
-                <div>
-                  <label className="text-medical-white/60 block mb-1">Antibiotic Conc.</label>
-                  <div className="bg-charcoal p-2 rounded border border-white/10 text-cyan-soft">50.0%</div>
-                </div>
-              </div>
-              <div className="pt-2">
-                <div className="w-full py-2.5 rounded-lg bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-semibold text-center text-xs shadow-lg">
-                  ▶ Start Simulation Experiment
-                </div>
-              </div>
-            </div>
-          </div>
-        </GlassCard>
-
-        <div>
+      <section className="max-w-6xl mx-auto px-6 py-16">
+        <div className="text-center mb-14">
           <p className="section-eyebrow mb-4">Configuration</p>
-          <h2 className="title-serif text-3xl text-medical-white mb-8">
+          <h2 className="title-serif text-3xl text-medical-white">
             Understanding the Controls
           </h2>
-          <div className="flex flex-col gap-4">
-            {CONTROLS.map((c, i) => (
-              <GlassCard key={c.name} delay={i * 0.05} className="!p-4">
-                <p className="font-body font-semibold text-gold-400 mb-1">
-                  {c.name}
-                </p>
-                <p className="text-sm font-body text-medical-white/65 leading-relaxed">
-                  {c.desc}
-                </p>
-              </GlassCard>
-            ))}
-          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {CONTROLS.map((c, i) => (
+            <GlassCard key={c.name} delay={i * 0.05} className="!p-5 h-full">
+              <h3 className="font-body font-semibold text-gold-400 mb-2">
+                {c.name}
+              </h3>
+              <p className="text-sm font-body text-medical-white/65 leading-relaxed">
+                {c.desc}
+              </p>
+            </GlassCard>
+          ))}
         </div>
       </section>
 
@@ -230,51 +228,70 @@ export default function HowToUse() {
         </div>
       </section>
 
-      {/* Section 2: grid environment */}
-      <section className="max-w-6xl mx-auto px-6 py-16 grid grid-cols-1 lg:grid-cols-2 gap-14 items-start">
-        <div className="order-2 lg:order-1">
+      {/* Section 2: DYNAMIC grid environment / Evolution Showcase */}
+      <section className="max-w-6xl mx-auto px-6 py-16">
+        <div className="text-center mb-10">
           <p className="section-eyebrow mb-4">Visualization</p>
           <h2 className="title-serif text-3xl text-medical-white mb-6">
-            Reading the Grid Environment
+            Reading the Evolution Grid
           </h2>
-          <p className="font-body text-medical-white/65 leading-relaxed mb-6">
-            The 3D petri dish renders every living cell as a glowing,
-            color-coded bacterium layered above an antibiotic concentration
-            heatmap. Together they show not just how many bacteria survive,
-            but where and why.
-          </p>
-          <div className="flex flex-col gap-3">
-            {GRID_LEGEND.map((l) => (
-              <div key={l.label} className="flex items-center gap-3">
-                <span
-                  className="w-4 h-4 rounded-full shrink-0"
-                  style={{ background: l.color }}
-                />
-                <span className="text-sm font-body text-medical-white/70">
-                  {l.label}
-                </span>
-              </div>
-            ))}
-          </div>
-          <p className="font-body text-medical-white/65 leading-relaxed mt-6">
-            <span className="text-gold-400 font-semibold">Hotspots</span> are
-            regions where resistant cells cluster under high antibiotic
-            pressure an early warning sign of selection pressure
-            concentrating in one area of the colony.
+          <p className="font-body text-medical-white/65 leading-relaxed max-w-2xl mx-auto">
+            The 3D petri dish renders every cell live. As generations pass, watch susceptible cells interact with the antibiotic heatmap, survive, mutate, and eventually shift color as they gain resistance.
           </p>
         </div>
-        <GlassCard hover={false} className="!p-4 order-1 lg:order-2">
-          <div className="rounded-xl overflow-hidden bg-navy-deep/90 p-5 border border-purple-500/20 shadow-xl flex flex-col items-center justify-center min-h-[260px] relative">
-            <div className="w-40 h-40 rounded-full border-2 border-cyan-400/40 bg-radial from-purple-900/40 via-navy to-charcoal flex items-center justify-center relative shadow-[0_0_30px_rgba(56,189,248,0.25)]">
-              <div className="absolute w-3 h-3 rounded-full bg-cyan-400 top-8 left-10 animate-ping" />
-              <div className="absolute w-2.5 h-2.5 rounded-full bg-gold-400 bottom-10 right-8" />
-              <div className="absolute w-3 h-3 rounded-full bg-red-400 top-12 right-12" />
-              <div className="absolute w-2 h-2 rounded-full bg-cyan-300 bottom-12 left-12" />
-              <div className="text-[10px] font-data text-cyan-soft/80">3D Cellular Grid</div>
-            </div>
-            <div className="mt-4 text-xs font-data text-medical-white/60">Real-time Microbial Colony Surface</div>
+
+        <div className="max-w-4xl mx-auto relative rounded-3xl overflow-hidden bg-navy-deep/60 border border-white/10 shadow-2xl p-10 min-h-[380px] flex flex-col items-center justify-center">
+          {/* Animated Glow Background behind the active one */}
+          <motion.div
+            animate={{ background: `radial-gradient(ellipse at center, ${EVOLUTION_STATES[evoIndex].glow} 0%, transparent 70%)` }}
+            transition={{ duration: 1.5, ease: "easeInOut" }}
+            className="absolute inset-0 z-0 pointer-events-none opacity-40"
+          />
+
+          {/* Row of Horizontal Cells */}
+          <div className="flex flex-row items-center justify-center gap-6 sm:gap-12 z-10 mb-10 mt-6">
+            {EVOLUTION_STATES.map((state, i) => {
+              const isActive = i === evoIndex;
+              return (
+                <motion.div
+                  key={state.title}
+                  animate={{
+                    backgroundColor: state.color,
+                    boxShadow: isActive ? `0 0 40px ${state.glow}` : `0 0 0px transparent`,
+                    scale: isActive ? 1.3 : 0.7,
+                    opacity: isActive ? 1 : 0.4
+                  }}
+                  transition={{ duration: 0.6 }}
+                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-full"
+                />
+              );
+            })}
           </div>
-        </GlassCard>
+
+          {/* Dynamic Text Information */}
+          <div className="text-center z-10 h-32 flex flex-col items-center justify-start w-full">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={evoIndex}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+                className="flex flex-col items-center"
+              >
+                <h3
+                  className="text-2xl font-bold tracking-wide mb-3"
+                  style={{ color: EVOLUTION_STATES[evoIndex].color }}
+                >
+                  {EVOLUTION_STATES[evoIndex].title}
+                </h3>
+                <p className="text-medical-white/70 max-w-lg leading-relaxed font-body">
+                  {EVOLUTION_STATES[evoIndex].desc}
+                </p>
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </div>
       </section>
 
       {/* Model mechanics */}
@@ -293,28 +310,6 @@ export default function HowToUse() {
               </p>
               <p className="text-sm font-body text-medical-white/65 leading-relaxed">
                 {r.desc}
-              </p>
-            </GlassCard>
-          ))}
-        </div>
-      </section>
-
-      {/* Mid-experiment controls */}
-      <section className="max-w-6xl mx-auto px-6 py-16">
-        <div className="text-center mb-14">
-          <p className="section-eyebrow mb-4">Lab Interventions</p>
-          <h2 className="title-serif text-3xl text-medical-white">
-            Mid-Experiment Controls
-          </h2>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {LAB_CONTROLS.map((c, i) => (
-            <GlassCard key={c.name} delay={(i % 3) * 0.08}>
-              <p className="font-display text-gold-500 tracking-wide mb-2">
-                {c.name}
-              </p>
-              <p className="text-sm font-body text-medical-white/65 leading-relaxed">
-                {c.desc}
               </p>
             </GlassCard>
           ))}
