@@ -240,22 +240,16 @@ export default function Landing() {
           {/* Header */}
           <div className="flex justify-between items-center mb-6">
             <div className="flex items-center gap-3">
-              <span className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_10px_rgba(52,211,153,0.8)]" />
-              <span className="text-sm font-bold tracking-widest text-white/90 uppercase">
-                Live Resistance Heatmap · MRSA Hospital Surface
-              </span>
+               
             </div>
-            <span className="text-xs font-mono tracking-widest text-emerald-300/80">
-              GEN {String(activeStage * 12 + 84).padStart(3, '0')} / 120
-            </span>
           </div>
 
-          {/* Animated Grid */}
+          {/* Animated Grid-Green Green thing*/}
           <div 
             className="grid gap-1.5 sm:gap-2" 
             style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(32px, 1fr))' }}
           >
-            {Array.from({ length: 96 }).map((_, i) => (
+            {Array.from({ length: 140 }).map((_, i) => (
               <motion.div
                 key={i}
                 initial={{ opacity: 0 }}
