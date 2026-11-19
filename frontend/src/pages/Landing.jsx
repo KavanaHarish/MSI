@@ -14,13 +14,13 @@ const EVOLUTION_STAGES = [
 ];
 
 const FEATURES = [
-  { title: "3D Petri Dish", desc: "Real-time WebGL visualization of a living bacterial colony under antibiotic stress." },
-  { title: "Genetic Algorithm", desc: "Reproduction, mutation, and selection modeled generation by generation." },
-  { title: "ML Prediction", desc: "Forecasts resistance trajectories and dominant-generation estimates." },
-  { title: "Antibiotic Heatmaps", desc: "Diffusion-based concentration fields rendered directly onto the dish." },
-  { title: "Interactive Dashboard", desc: "Tune every parameter and watch the colony respond live." },
-  { title: "Experiment History", desc: "A running research log of every mutation and resistance event." },
-  { title: "Research Reports", desc: "Export full experiment data as JSON or CSV for further analysis." },
+  { title: "3D Petri Dish", desc: "Real-time WebGL visualization of a living bacterial colony on a computational grid under antibiotic stress." },
+  { title: "Genetic Algorithm", desc: "Genome-based GA with fitness, selection, crossover, and mutation models evolutionary adaptation to selective pressure." },
+  { title: "ML Prediction", desc: "Forecasts resistance trajectories and early hotspot risk from generation-by-generation simulation history." },
+  { title: "Antibiotic Heatmaps", desc: "Diffusion-based concentration fields rendered directly onto the dish for spatial analysis." },
+  { title: "Real-World Scenarios", desc: "Mapped presets for hospital surface MRSA contamination and E. coli urinary tract infection studies." },
+  { title: "Experiment History", desc: "A running research log of mutations, HGT, and resistance events across generations." },
+  { title: "Research Reports", desc: "Export experiment data and generate laboratory reports for analysis and validation." },
 ];
 
 const LAB_IMAGES = [

@@ -1096,6 +1096,7 @@ export default function PetriDish3D({
     );
     heatPlane.rotation.x = -Math.PI / 2;
     heatPlane.position.y = -0.245;
+    heatPlane.visible = false;
     scene.add(heatPlane);
 
     // GRID LABELS & LIGHTS

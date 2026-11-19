@@ -7,6 +7,8 @@ const api = axios.create({
 
 export const startExperiment = (config) => api.post("/start", config).then((r) => r.data);
 
+export const getScenarios = () => api.get("/scenarios").then((r) => r.data);
+
 export const stepExperiment = (experimentId, steps = 1) =>
   api.post("/step", { experiment_id: experimentId, steps }).then((r) => r.data);
 

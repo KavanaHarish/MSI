@@ -62,6 +62,14 @@ export default function StatPanel() {
         value={stats.hotspot_count}
         accent={stats.hotspot_count > 2 ? "text-red-400" : "text-medical-white"}
       />
+      <div className="mt-3 pt-3 border-t border-white/10">
+        <p className="text-[10px] font-data text-cyan-soft/80 tracking-widest mb-2">GENETIC ALGORITHM</p>
+        <StatRow label="Mean Fitness" value={(stats.ga_mean_fitness ?? 0).toFixed(3)} accent="text-emerald-accent" />
+        <StatRow label="Best Fitness" value={(stats.ga_best_fitness ?? 0).toFixed(3)} accent="text-gold-400" />
+        <StatRow label="Genome Diversity" value={`${((stats.ga_diversity ?? 0) * 100).toFixed(1)}%`} accent="text-cyan-soft" />
+        <StatRow label="GA Selection Events" value={stats.ga_cumulative_selection_events ?? 0} />
+        <StatRow label="GA Crossover Events" value={stats.ga_cumulative_crossover_events ?? 0} />
+      </div>
     </div>
   );
 }

@@ -10,9 +10,10 @@ const TEAM = [
 ];
 
 const VALUES = [
-  { title: "Spatial Realism", desc: "Agent-based cells evolve on a diffusion grid with antibiotic concentration gradients and treatment hotspots." },
-  { title: "Forecasting", desc: "A lightweight ML model estimates dominant-generation and drug effectiveness trajectories from live history." },
-  { title: "Reproducibility", desc: "Full experiment history exports as JSON / CSV and a generated PDF laboratory report." },
+  { title: "Spatial Realism", desc: "Agent-based cells evolve on a computational diffusion grid with antibiotic concentration gradients and treatment hotspots." },
+  { title: "Genetic Algorithms", desc: "Genome-based GA operators (fitness, selection, crossover, mutation) model adaptation to selective antibiotic pressures." },
+  { title: "Forecasting", desc: "ML analysis estimates resistance trajectories, effectiveness, and early hotspot risk from live simulation history." },
+  { title: "Real-World Mapping", desc: "Scenario presets map experiments to contexts like hospital surface MRSA and E. coli urinary tract infections." },
 ];
 
 export default function About() {

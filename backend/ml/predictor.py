@@ -4,9 +4,9 @@ ML Analysis Layer.
 IMPORTANT: this module never touches the simulation itself. It only reads
 the generation-by-generation history the SimulationEngine has already
 produced and fits lightweight models to forecast where resistance is
-heading. This keeps "what happens" (engine) cleanly separated from
+heading. This keeps "what happens" (engine) cle separated from
 "what we predict will happen" (ML), as required by the project spec.
-
+anly
 Modelling approach:
   - A RandomForestRegressor learns the per-generation *change* in average
     resistance from the historical feature log (generation, population,

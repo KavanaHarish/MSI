@@ -5,6 +5,17 @@ import uuid
 import random
 import numpy as np
 
+from .genetic_algorithm import (
+    crossover,
+    fitness as ga_fitness,
+    genome_from_resistance,
+    mutate as ga_mutate,
+    phenotype_resistance,
+    population_diversity,
+    random_genome,
+    tournament_select,
+)
+
 SPECIES_PROFILES = {
     "ecoli": {"label": "E. coli", "base_growth": 0.32, "base_mutation": 0.01},
     "mrsa": {"label": "MRSA", "base_growth": 0.22, "base_mutation": 0.02},
@@ -17,6 +28,36 @@ SPECIES_PROFILES = {
     "gonorrhoeae": {"label": "N. gonorrhoeae", "base_growth": 0.24, "base_mutation": 0.02},
     "enterobacter": {"label": "E. cloacae", "base_growth": 0.29, "base_mutation": 0.02},
     "haemophilus": {"label": "H. influenzae", "base_growth": 0.26, "base_mutation": 0.01},
+}
+
+# Real-world mapped scenarios (objectives): hospital surface (MRSA) and UTI (E. coli)
+SCENARIO_PRESETS = {
+    "hospital_surface_mrsa": {
+        "label": "Hospital Surface Infection (MRSA)",
+        "description": "High-touch hospital surface contamination with methicillin-resistant S. aureus under cleaning/disinfection pressure.",
+        "species": "mrsa",
+        "antibiotic": "vancomycin",
+        "initial_population": 140,
+        "antibiotic_level": 0.55,
+        "mutation_rate": 0.06,
+        "mutation_strength": 0.14,
+        "growth_rate": 0.24,
+        "hgt_rate": 0.03,
+        "grid_size": 40,
+    },
+    "uti_ecoli": {
+        "label": "Urinary Tract Infection (E. coli)",
+        "description": "Urinary tract infection scenario with E. coli exposed to antibiotic therapy and host/environment selective pressure.",
+        "species": "ecoli",
+        "antibiotic": "nitrofurantoin",
+        "initial_population": 160,
+        "antibiotic_level": 0.45,
+        "mutation_rate": 0.05,
+        "mutation_strength": 0.12,
+        "growth_rate": 0.32,
+        "hgt_rate": 0.025,
+        "grid_size": 40,
+    },
 }
 
 SUSCEPTIBLE, INTERMEDIATE, RESISTANT, HIGHLY_RESISTANT = 0, 1, 2, 3
@@ -39,14 +80,16 @@ def classify(resistance):
 
 
 class Cell:
-    __slots__ = ("x", "y", "resistance", "alive", "mutations")
+    __slots__ = ("x", "y", "resistance", "alive", "mutations", "genome", "fitness")
 
-    def __init__(self, x, y, resistance, mutations=0):
+    def __init__(self, x, y, resistance, mutations=0, genome=None):
         self.x = x
         self.y = y
-        self.resistance = resistance
+        self.genome = genome if genome is not None else genome_from_resistance(resistance)
+        self.resistance = float(np.clip(phenotype_resistance(self.genome), 0.0, 1.0))
         self.alive = True
         self.mutations = mutations
+        self.fitness = 0.0
 
 
 class SimulationEngine:
@@ -61,15 +104,17 @@ class SimulationEngine:
         growth_rate=0.3,
         simulation_speed=1.0,
         hgt_rate=0.02,
+        scenario=None,
     ):
         self.id = str(uuid.uuid4())
+        self.scenario = scenario if scenario in SCENARIO_PRESETS else None
         self.species = species if species in SPECIES_PROFILES else "ecoli"
         profile = SPECIES_PROFILES[self.species]
 
         self.grid_size = int(grid_size)
         self.mutation_rate = float(mutation_rate)
-        self.mutation_strength = float(mutation_strength) * 4.0 
-        
+        self.mutation_strength = float(mutation_strength) * 4.0
+
         self.antibiotic_level = float(antibiotic_level)
         self.growth_rate = float(growth_rate) if growth_rate else profile["base_growth"]
         self.simulation_speed = float(simulation_speed)
@@ -79,22 +124,24 @@ class SimulationEngine:
         self.mutation_count = 0
         self.death_count = 0
         self.hgt_count = 0
+        self.ga_selection_events = 0
+        self.ga_crossover_events = 0
+        self.ga_mutation_events = 0
         self.history = []
-        self.interventions_log = [] # Tracks manual lab actions
+        self.interventions_log = []  # Tracks manual lab actions
 
         self.antibiotic_field = self._init_antibiotic_field()
         self.cells = []
         self.max_population = max(int(initial_population) * 12, 800)
-        
+
         occupied = set()
         while len(self.cells) < int(initial_population) and len(occupied) < self.grid_size**2:
             x = random.randint(0, self.grid_size - 1)
             y = random.randint(0, self.grid_size - 1)
             if (x, y) not in occupied:
                 occupied.add((x, y))
-                self.cells.append(
-                    Cell(x, y, self._seed_resistance())
-                )
+                seed_res = self._seed_resistance()
+                self.cells.append(Cell(x, y, seed_res, genome=random_genome()))
 
         self.running = False
 
@@ -128,6 +175,7 @@ class SimulationEngine:
         else:
             cx, cy = float(center_x), float(center_y)
 
+
         yy, xx = np.mgrid[0:size, 0:size]
         dist = np.sqrt((xx - cx) ** 2 + (yy - cy) ** 2) / (size / 2)
         
@@ -160,29 +208,21 @@ class SimulationEngine:
         self.antibiotic_field = np.clip(self.antibiotic_field, 0.1, 2.0)
 
     def _horizontal_gene_transfer(self, cells):
-        """LAB FEATURE: conjugation.
-
-        A resistant cell shares resistance genes (plasmids) with an adjacent
-        cell, pulling the recipient's resistance partway toward its own. This
-        spreads resistance laterally between neighbours — independent of the
-        vertical parent→child inheritance handled in step() — which produces
-        the explosive, non-linear resistance sweeps seen in real microbiology.
-
-        Donor resistances are snapshotted before the pass so a cell that
-        receives a plasmid this generation cannot donate again in the same
-        generation (no unbounded one-pass cascade).
+        """LAB FEATURE: conjugation (plasmid/gene transfer).
+        Spreads resistance laterally by transferring advantageous genome segments
+        from donor to recipient and recomputing phenotype resistance.
         """
         if self.hgt_rate <= 0 or len(cells) < 2:
             return 0
 
         occupied = {(c.x, c.y): c for c in cells}
-        donor_resistance = {id(c): c.resistance for c in cells}
+        donor_snapshot = {id(c): (c.resistance, list(c.genome)) for c in cells}
         transfers = 0
         grid = self.grid_size
 
         for donor in cells:
-            base = donor_resistance.get(id(donor), donor.resistance)
-            if base < HGT_MIN_RESISTANCE:
+            base_res, base_genome = donor_snapshot.get(id(donor), (donor.resistance, list(donor.genome)))
+            if base_res < HGT_MIN_RESISTANCE:
                 continue
             if random.random() > self.hgt_rate:
                 continue
@@ -198,9 +238,15 @@ class SimulationEngine:
             for nx, ny in candidates:
                 if 0 <= nx < grid and 0 <= ny < grid:
                     receiver = occupied.get((nx, ny))
-                    if receiver is not None and receiver.resistance < base:
-                        gain = (base - receiver.resistance) * HGT_TRANSFER_FRACTION
-                        receiver.resistance = float(np.clip(receiver.resistance + gain, 0.0, 1.0))
+                    if receiver is not None and receiver.resistance < base_res:
+                        # Gene/plasmid segment transfer + phenotype update.
+                        for i, gval in enumerate(base_genome):
+                            if random.random() < 0.35 and gval > receiver.genome[i]:
+                                receiver.genome[i] = float(np.clip(
+                                    receiver.genome[i] + (gval - receiver.genome[i]) * HGT_TRANSFER_FRACTION,
+                                    0.0, 1.0
+                                ))
+                        receiver.resistance = phenotype_resistance(receiver.genome)
                         transfers += 1
                         break
 
@@ -214,13 +260,18 @@ class SimulationEngine:
         occupied = set()
         deaths_this_gen = 0
         mutations_this_gen = 0
+        selection_events = 0
+        crossover_events = 0
 
         for cell in self.cells:
             if not cell.alive:
                 continue
 
             local_ab = float(self.antibiotic_field[cell.y, cell.x])
-            survival_chance = 1.0 - max(0.0, local_ab - cell.resistance) #selection
+            # Recompute phenotype fitness from genome under current environment.
+            cell.resistance = phenotype_resistance(cell.genome)
+            cell.fitness = ga_fitness(cell.genome, local_ab, self.growth_rate)
+            survival_chance = float(np.clip(1.0 - max(0.0, local_ab - cell.resistance), 0.0, 1.0))
 
             if random.random() > survival_chance:
                 cell.alive = False
@@ -234,9 +285,17 @@ class SimulationEngine:
                 deaths_this_gen += 1
 
         new_cells = []
+        if survivors:
+            fitness_pool = [
+                (c.genome, ga_fitness(c.genome, float(self.antibiotic_field[c.y, c.x]), self.growth_rate))
+                for c in survivors
+            ]
+        else:
+            fitness_pool = []
+
         for cell in survivors:
             new_cells.append(cell)
-            
+
             if random.random() < self.growth_rate and len(new_cells) < self.max_population:
                 neighbors = [
                     (cell.x + dx, cell.y + dy)
@@ -244,21 +303,29 @@ class SimulationEngine:
                     if not (dx == 0 and dy == 0)
                 ]
                 random.shuffle(neighbors)
-                
+
                 for nx, ny in neighbors:
                     if 0 <= nx < self.grid_size and 0 <= ny < self.grid_size:
                         if (nx, ny) not in occupied:
-                            child_resistance = cell.resistance
-                            child_mutations = cell.mutations
-                            
-                            if random.random() < (self.mutation_rate * 3.0): #mutation 
-                                delta = random.uniform(0.1, 0.8) * self.mutation_strength
-                                child_resistance = float(np.clip(cell.resistance + delta, 0, 1))
-                                child_mutations += 1
-                                mutations_this_gen += 1
-                            
+                            # Genetic algorithm reproduction: selection + crossover + mutation
+                            mate_genome = tournament_select(fitness_pool, k=3) if len(fitness_pool) > 1 else list(cell.genome)
+                            selection_events += 1 if len(fitness_pool) > 1 else 0
+                            child_genome, did_cross = crossover(cell.genome, mate_genome, rate=0.75)
+                            crossover_events += 1 if did_cross else 0
+
+                            local_ab_child = float(self.antibiotic_field[ny, nx])
+                            pressure = max(0.0, local_ab_child - phenotype_resistance(child_genome))
+                            adaptive_rate = min(0.95, self.mutation_rate * (2.0 + pressure * 1.5))
+                            adaptive_strength = self.mutation_strength * (1.0 + pressure * 0.5)
+                            child_genome, did_mutate = ga_mutate(child_genome, adaptive_rate, adaptive_strength)
+
+                            child_mutations = cell.mutations + (1 if did_mutate else 0)
+                            mutations_this_gen += 1 if did_mutate else 0
+
+                            child = Cell(nx, ny, 0.0, child_mutations, genome=child_genome)
+                            child.fitness = ga_fitness(child.genome, local_ab_child, self.growth_rate)
                             occupied.add((nx, ny))
-                            new_cells.append(Cell(nx, ny, child_resistance, child_mutations))
+                            new_cells.append(child)
                             break
 
         self.cells = new_cells
@@ -267,20 +334,33 @@ class SimulationEngine:
         self.hgt_count += hgt_events_this_gen
         self.death_count += deaths_this_gen
         self.mutation_count += mutations_this_gen
+        self.ga_selection_events += selection_events
+        self.ga_crossover_events += crossover_events
+        self.ga_mutation_events += mutations_this_gen
 
-        snapshot = self._build_snapshot(deaths_this_gen, mutations_this_gen, hgt_events_this_gen)
+        snapshot = self._build_snapshot(
+            deaths_this_gen, mutations_this_gen, hgt_events_this_gen,
+            selection_events=selection_events, crossover_events=crossover_events
+        )
         self.history.append(snapshot)
         return snapshot
 
-    def _build_snapshot(self, deaths_this_gen, mutations_this_gen, hgt_events_this_gen=0):
+    def _build_snapshot(self, deaths_this_gen, mutations_this_gen, hgt_events_this_gen=0, selection_events=0, crossover_events=0):
         population = len(self.cells)
         if population > 0:
             resistances = np.array([c.resistance for c in self.cells])
+            fitnesses = np.array([getattr(c, "fitness", 0.0) for c in self.cells], dtype=float)
             avg_resistance = float(resistances.mean())
             resistant_frac = float((resistances >= 0.75).mean())
+            mean_fitness = float(fitnesses.mean()) if fitnesses.size else 0.0
+            best_fitness = float(fitnesses.max()) if fitnesses.size else 0.0
+            diversity = population_diversity([c.genome for c in self.cells])
         else:
             avg_resistance = 0.0
             resistant_frac = 0.0
+            mean_fitness = 0.0
+            best_fitness = 0.0
+            diversity = 0.0
 
         survival_rate = 1.0 - (
             deaths_this_gen / max(1, deaths_this_gen + population)
@@ -302,6 +382,14 @@ class SimulationEngine:
             "survival_rate": round(survival_rate, 4),
             "hotspot_count": hotspot_count,
             "dominant_colony": classify(avg_resistance),
+            "ga_mean_fitness": round(mean_fitness, 4),
+            "ga_best_fitness": round(best_fitness, 4),
+            "ga_diversity": round(diversity, 4),
+            "ga_selection_events": int(selection_events),
+            "ga_crossover_events": int(crossover_events),
+            "ga_cumulative_selection_events": int(self.ga_selection_events),
+            "ga_cumulative_crossover_events": int(self.ga_crossover_events),
+            "ga_cumulative_mutation_events": int(self.ga_mutation_events),
         }
 
     def _count_hotspots(self):
@@ -326,6 +414,8 @@ class SimulationEngine:
                 "mutation_count": c.mutations,
                 "growth_rate": round(self.growth_rate, 3),
                 "parent_id": None,
+                "fitness": round(float(getattr(c, "fitness", 0.0)), 3),
+                "genome_signature": round(float(np.mean(c.genome)) if getattr(c, "genome", None) else c.resistance, 3),
             }
             for idx, c in enumerate(self.cells)
         ]
@@ -338,25 +428,35 @@ class SimulationEngine:
 
     def get_state(self):
         latest = self.history[-1] if self.history else self._build_snapshot(0, 0, 0)
+        scenario_meta = SCENARIO_PRESETS.get(self.scenario, None)
         return {
             "id": self.id,
             "species": self.species,
+            "scenario": self.scenario,
+            "scenario_label": scenario_meta["label"] if scenario_meta else None,
             "grid_size": self.grid_size,
             "generation": self.generation,
             "cells": self.get_cells_payload(),
             "antibiotic_field": self.get_antibiotic_field_payload(downsample=2),
             "stats": latest,
             "interventions_log": self.interventions_log,
+            "ga_enabled": True,
+            "ga_model": "Genome-based GA (selection, crossover, mutation, fitness under antibiotic pressure)",
         }
 
     def config_metadata(self):
+        scenario_meta = SCENARIO_PRESETS.get(self.scenario, None)
         return {
             "species": self.species,
+            "scenario": self.scenario,
+            "scenario_label": scenario_meta["label"] if scenario_meta else None,
+            "scenario_description": scenario_meta["description"] if scenario_meta else None,
             "grid_size": self.grid_size,
-            "mutation_rate": self.mutation_rate,
-            "mutation_strength": self.mutation_strength,
+            "mutation_rate": self.mutation_rate / 4.0 if self.mutation_strength else self.mutation_rate,
+            "mutation_strength": self.mutation_strength / 4.0,
             "antibiotic_level": self.antibiotic_level,
             "growth_rate": self.growth_rate,
             "simulation_speed": self.simulation_speed,
             "hgt_rate": self.hgt_rate,
+            "ga_enabled": True,
         }

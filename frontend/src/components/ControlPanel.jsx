@@ -14,6 +14,37 @@ const SLIDERS = [
   { key: "simulation_speed", label: "Simulation Speed", min: 0.5, max: 4, step: 0.5 },
 ];
 
+const SCENARIOS = [
+  { value: "", label: "Custom Experiment" },
+  { value: "hospital_surface_mrsa", label: "Hospital Surface Infection (MRSA)" },
+  { value: "uti_ecoli", label: "Urinary Tract Infection (E. coli)" },
+];
+
+const SCENARIO_DEFAULTS = {
+  hospital_surface_mrsa: {
+    species: "mrsa",
+    antibiotic: "vancomycin",
+    initial_population: 140,
+    antibiotic_level: 0.55,
+    mutation_rate: 0.06,
+    mutation_strength: 0.14,
+    growth_rate: 0.24,
+    hgt_rate: 0.03,
+    grid_size: 40,
+  },
+  uti_ecoli: {
+    species: "ecoli",
+    antibiotic: "nitrofurantoin",
+    initial_population: 160,
+    antibiotic_level: 0.45,
+    mutation_rate: 0.05,
+    mutation_strength: 0.12,
+    growth_rate: 0.32,
+    hgt_rate: 0.025,
+    grid_size: 40,
+  },
+};
+
 const SPECIES = [
   { value: "ecoli", label: "Escherichia coli (E. coli)" },
   { value: "klebsiella", label: "Klebsiella pneumoniae" },
@@ -167,19 +198,52 @@ export default function ControlPanel() {
     }
   }, [readyForParameters]);
 
+  const handleScenarioChange = (e) => {
+    const scenario = e.target.value;
+    setShowParameters(false);
+    if (scenario && SCENARIO_DEFAULTS[scenario]) {
+      updateConfig({ scenario, ...SCENARIO_DEFAULTS[scenario] });
+    } else {
+      updateConfig({ scenario: "" });
+    }
+  };
+
   const handleSpeciesChange = (e) => {
     const nextSpecies = e.target.value;
     setShowParameters(false);
-    updateConfig({ species: nextSpecies, antibiotic: "" });
+    updateConfig({ scenario: "", species: nextSpecies, antibiotic: "" });
   };
 
   return (
     <div className="glass-panel p-5 flex flex-col gap-5 h-full overflow-y-auto">
       <div className="text-center">
         <h3 className="font-display text-gold-500 text-sm tracking-[0.2em] mb-3">
-          ORGANISM
+          EXPERIMENT SETUP
         </h3>
+
         <label className="mb-2 flex items-center justify-center text-xs font-data tracking-[0.28em] uppercase text-cyan-soft/80">
+          <span className="inline-flex items-center gap-2">
+            <span aria-hidden="true">🏥</span>
+            <span>Real-World Scenario</span>
+          </span>
+        </label>
+        <select
+          value={config.scenario || ""}
+          disabled={disabled}
+          onChange={handleScenarioChange}
+          className={SELECT_CLASS}
+        >
+          {SCENARIOS.map((s) => (
+            <option key={s.value || "custom"} value={s.value}>
+              {s.label}
+            </option>
+          ))}
+        </select>
+        <p className="mt-2 text-[10px] font-data text-medical-white/45 leading-relaxed">
+          Mapped scenarios: hospital surface infection (MRSA) and urinary tract infection (E. coli).
+        </p>
+
+        <label className="mb-2 mt-4 flex items-center justify-center text-xs font-data tracking-[0.28em] uppercase text-cyan-soft/80">
           <span className="inline-flex items-center gap-2">
             <span aria-hidden="true">🦠</span>
             <span>Microbial Species (Bacteria)</span>
@@ -210,7 +274,7 @@ export default function ControlPanel() {
         <select
           value={config.antibiotic || ""}
           disabled={disabled || !config.species}
-          onChange={(e) => updateConfig({ antibiotic: e.target.value })}
+          onChange={(e) => updateConfig({ scenario: "", antibiotic: e.target.value })}
           className={SELECT_CLASS}
         >
           <option value="" disabled>
@@ -267,6 +331,9 @@ export default function ControlPanel() {
             <h3 className="font-display text-gold-500 text-sm tracking-[0.2em] text-center">
               REQUIREMENTS
             </h3>
+            <p className="text-[11px] font-data text-cyan-soft/70 text-center leading-relaxed">
+              Evolution model: genome-based Genetic Algorithm (fitness, selection, crossover, mutation) + HGT under antibiotic pressure.
+            </p>
             {SLIDERS.map((s) => (
               <div key={s.key}>
                 <div className="flex justify-between text-xs font-data text-medical-white/70 mb-1">

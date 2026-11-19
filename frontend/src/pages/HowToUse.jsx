@@ -111,8 +111,12 @@ const WORKFLOW_STEPS = [
 
 const MODEL_RULES = [
   {
-    title: "Reproduction & Mutation",
-    desc: "Each surviving cell may reproduce into an adjacent empty cell. Offspring inherit parental resistance; a mutation shifts it by a random amount up to the configured mutation strength.",
+    title: "Genetic Algorithm Evolution",
+    desc: "Each cell carries a resistance genome. Reproduction uses fitness-based selection, crossover between parent genomes, and mutation operators. Phenotype resistance and survival fitness are evaluated under local antibiotic pressure each generation.",
+  },
+  {
+    title: "Reproduction & Inheritance",
+    desc: "Surviving cells reproduce into adjacent empty cells. Offspring inherit and recombine genomic traits, so adaptation emerges through GA-driven evolutionary dynamics.",
   },
   {
     title: "Horizontal Gene Transfer",

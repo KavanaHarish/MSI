@@ -7,7 +7,7 @@ from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 
 from config import Config
-from simulation.engine import SimulationEngine
+from simulation.engine import SimulationEngine, SCENARIO_PRESETS
 from ml.predictor import analyze
 from db.mongo import mongo_store
 
@@ -32,22 +32,51 @@ def health():
     return jsonify({"status": "ok", "mongo_connected": mongo_store.connected})
 
 
+@app.route("/api/scenarios", methods=["GET"])
+def list_scenarios():
+    return jsonify(SCENARIO_PRESETS)
+
+
 @app.route("/api/start", methods=["POST"])
 def start_experiment():
     payload = request.get_json(force=True) or {}
 
-    species = payload.get("species", "ecoli")
+    scenario = payload.get("scenario")
+    if scenario in SCENARIO_PRESETS:
+        preset = SCENARIO_PRESETS[scenario]
+        # Allow explicit overrides while defaulting to scenario mapping.
+        species = payload.get("species") or preset["species"]
+        grid_size = payload.get("grid_size", preset.get("grid_size", 40))
+        initial_population = payload.get("initial_population", preset.get("initial_population", 120))
+        mutation_rate = payload.get("mutation_rate", preset.get("mutation_rate", 0.05))
+        mutation_strength = payload.get("mutation_strength", preset.get("mutation_strength", 0.1))
+        antibiotic_level = payload.get("antibiotic_level", preset.get("antibiotic_level", 0.5))
+        growth_rate = payload.get("growth_rate", preset.get("growth_rate", 0.3))
+        hgt_rate = payload.get("hgt_rate", preset.get("hgt_rate", 0.02))
+        simulation_speed = payload.get("simulation_speed", 1.0)
+    else:
+        scenario = None
+        species = payload.get("species", "ecoli")
+        grid_size = payload.get("grid_size", 40)
+        initial_population = payload.get("initial_population", 120)
+        mutation_rate = payload.get("mutation_rate", 0.05)
+        mutation_strength = payload.get("mutation_strength", 0.1)
+        antibiotic_level = payload.get("antibiotic_level", 0.5)
+        growth_rate = payload.get("growth_rate", 0.3)
+        simulation_speed = payload.get("simulation_speed", 1.0)
+        hgt_rate = payload.get("hgt_rate", 0.02)
 
     engine = SimulationEngine(
         species=species,
-        grid_size=payload.get("grid_size", 40),
-        initial_population=payload.get("initial_population", 120),
-        mutation_rate=payload.get("mutation_rate", 0.05),
-        mutation_strength=payload.get("mutation_strength", 0.1),
-        antibiotic_level=payload.get("antibiotic_level", 0.5),
-        growth_rate=payload.get("growth_rate", 0.3),
-        simulation_speed=payload.get("simulation_speed", 1.0),
-        hgt_rate=payload.get("hgt_rate", 0.02),
+        grid_size=grid_size,
+        initial_population=initial_population,
+        mutation_rate=mutation_rate,
+        mutation_strength=mutation_strength,
+        antibiotic_level=antibiotic_level,
+        growth_rate=growth_rate,
+        simulation_speed=simulation_speed,
+        hgt_rate=hgt_rate,
+        scenario=scenario,
     )
     engine.running = True
     ACTIVE_SIMULATIONS[engine.id] = engine

@@ -1,7 +1,13 @@
 import os
+import dns.resolver
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Use Google DNS for MongoDB Atlas SRV lookups
+_atlas_dns = dns.resolver.Resolver(configure=False)
+_atlas_dns.nameservers = ["8.8.8.8", "8.8.4.4"]
+dns.resolver.default_resolver = _atlas_dns
 
 
 class Config:

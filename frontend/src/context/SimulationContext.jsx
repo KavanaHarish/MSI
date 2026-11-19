@@ -12,6 +12,7 @@ import {
 const SimulationContext = createContext(null);
 
 const DEFAULT_CONFIG = {
+  scenario: "",
   species: "",
   antibiotic: "",
   grid_size: 40,
