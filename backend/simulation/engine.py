@@ -141,18 +141,22 @@ class SimulationEngine:
             if (x, y) not in occupied:
                 occupied.add((x, y))
                 seed_res = self._seed_resistance()
-                self.cells.append(Cell(x, y, seed_res, genome=random_genome()))
+                genome = genome_from_resistance(seed_res)
+                # blend with random variation for genetic diversity
+                if random.random() < 0.5:
+                    rg = random_genome()
+                    genome = [float(np.clip(0.6 * g + 0.4 * r, 0.0, 1.0)) for g, r in zip(genome, rg)]
+                self.cells.append(Cell(x, y, seed_res, genome=genome))
 
         self.running = False
 
     def _seed_resistance(self):
         """Sample an initial resistance value for a freshly seeded cell.
 
-        Every cell starts in the low susceptible range so any resistance that
-        appears later is the result of mutation and selection pressure, not an
-        initial condition.
+        Cells start mostly susceptible but with enough standing variation for
+        selection to act under antibiotic pressure (avoids immediate collapse).
         """
-        return random.uniform(0.0, 0.10)
+        return random.uniform(0.02, 0.18)
 
     def _init_antibiotic_field(self):
         size = self.grid_size
@@ -271,7 +275,10 @@ class SimulationEngine:
             # Recompute phenotype fitness from genome under current environment.
             cell.resistance = phenotype_resistance(cell.genome)
             cell.fitness = ga_fitness(cell.genome, local_ab, self.growth_rate)
-            survival_chance = float(np.clip(1.0 - max(0.0, local_ab - cell.resistance), 0.0, 1.0))
+            pressure_gap = max(0.0, local_ab - cell.resistance)
+            # Softer selection pressure so populations can persist and adapt while
+            # still favoring resistant cells under antibiotic exposure.
+            survival_chance = float(np.clip(1.0 - 0.75 * pressure_gap, 0.05, 1.0))
 
             if random.random() > survival_chance:
                 cell.alive = False

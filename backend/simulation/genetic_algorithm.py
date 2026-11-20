@@ -31,8 +31,9 @@ class GAStats:
 
 def random_genome(rng: random.Random | None = None) -> List[float]:
     r = rng or random
-    # Start mostly susceptible with slight variation.
-    return [float(np.clip(r.uniform(0.0, 0.12) + r.gauss(0, 0.01), 0.0, 1.0)) for _ in range(GENOME_LENGTH)]
+    # Start with low-to-moderate susceptibility and standing variation so
+    # selection has material to act on under antibiotic pressure.
+    return [float(np.clip(r.uniform(0.02, 0.22) + r.gauss(0, 0.02), 0.0, 1.0)) for _ in range(GENOME_LENGTH)]
 
 
 def genome_from_resistance(resistance: float, rng: random.Random | None = None) -> List[float]:
